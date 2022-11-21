@@ -25,9 +25,11 @@ library(gridExtra)
 
 ```{r loaddata,include=FALSE}
 players_21 <- read_delim("data/2122players.csv", 
-                           delim = ";", escape_double = FALSE, trim_ws = TRUE)
+                           delim = ";", escape_double = FALSE, 
+                         trim_ws = TRUE,locale = locale(encoding = "UTF-8"))
 players_22 <- read_delim("data/2223players.csv", 
-                         delim = ";", escape_double = FALSE, trim_ws = TRUE)
+                         delim = ";", escape_double = FALSE, 
+                         trim_ws = TRUE,locale = locale(encoding = "UTF-8"))
 teams_21 <- read_delim("data/2122teams.csv", 
                          delim = ";", escape_double = FALSE, trim_ws = TRUE)
 teams_22 <- read_delim("data/2223teams.csv", 
@@ -193,9 +195,11 @@ fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
 
 The model can clearly split out 3 positions, with several points overlapping, which may be ambiguous positions such as wing back and defensive midfield.
 
-Then we apply clustering within each position with k = 2 \## DF
+Then we apply clustering within each position with k = 2, and identify the corresponding position by checking the cluster centers.
 
-```{r df}
+## DF
+
+```{r df,include=FALSE}
 set.seed(1234)
 n = 2
 # Filter out DF
@@ -218,12 +222,13 @@ kmeans<-eclust(selected_data, "kmeans", k = n,nstart = 50,graph= FALSE)
 pre_DF <- DF %>% 
   mutate(cluster = as.factor(kmeans$cluster))
 
-fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
-
 cluster_centers<-data.frame(cluster=as.factor(c(1:n)),kmeans$centers)
-
 #transpose this data frame
 cluster_centers_t<-cluster_centers %>% gather(variable,value,-cluster,factor_key = TRUE)
+```
+
+```{r,df_viz}
+fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
 
 #plot the centers
 ggplot(cluster_centers_t, aes(x = variable, y = value))+
@@ -242,7 +247,7 @@ pre_DF = pre_DF %>%
 
 ## MF
 
-```{r mf}
+```{r mf,include=FALSE}
 set.seed(1234)
 n = 2
 # Filter out MF
@@ -265,12 +270,13 @@ kmeans<-eclust(selected_data, "kmeans", k = n,nstart = 50,graph= FALSE)
 pre_MF <- MF %>% 
   mutate(cluster = as.factor(kmeans$cluster))
 
-fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
-
 cluster_centers<-data.frame(cluster=as.factor(c(1:n)),kmeans$centers)
-
 #transpose this data frame
 cluster_centers_t<-cluster_centers %>% gather(variable,value,-cluster,factor_key = TRUE)
+```
+
+```{r,mf_viz}
+fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
 
 #plot the centers
 ggplot(cluster_centers_t, aes(x = variable, y = value))+
@@ -289,7 +295,7 @@ pre_MF = pre_MF %>%
 
 ## FW
 
-```{r fw}
+```{r fw,include=FALSE}
 set.seed(1234)
 n = 2
 # Filter out FW
@@ -312,12 +318,13 @@ kmeans<-eclust(selected_data, "kmeans", k = n,nstart = 50,graph= FALSE)
 pre_FW <- FW %>% 
   mutate(cluster = as.factor(kmeans$cluster))
 
-fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
-
 cluster_centers<-data.frame(cluster=as.factor(c(1:n)),kmeans$centers)
-
 #transpose this data frame
 cluster_centers_t<-cluster_centers %>% gather(variable,value,-cluster,factor_key = TRUE)
+```
+
+```{r, fw_viz}
+fviz_cluster(kmeans,selected_data, palette = "Set2",geom = "point")
 
 #plot the centers
 ggplot(cluster_centers_t, aes(x = variable, y = value))+
@@ -334,7 +341,7 @@ pre_FW = pre_FW %>%
                              cluster == 2 ~ "CF"))
 ```
 
-```{r assign_clus}
+```{r assign_clus,include=FALSE}
 # Save data for each new clustered position
 pos_radar <- rbind(pre_DF,pre_FW,pre_MF) %>% 
   select(Player,Comp,Squad,cluster,
@@ -350,8 +357,9 @@ pos_mean<- pos_radar %>%
   
 ```
 
-```{r pos_com}
+## Clustering Result
 
+```{r pos_com}
 # Radar chart between new positions
 legend = c("Center Forward","Wing Forward",
            "Attacking Midfielder","Defending Midfielder",
@@ -396,3 +404,43 @@ legend("topright",
 title(main = "Player Stat Metrics")
 par(op)
 ```
+
+We can also compare Arnold and Van Dijk again and now they are classified into different positions now.
+
+# Conclusion
+
+We have identified the problem Liverpool is facing this season: Poor conversion rate, dropping midfielder and center back's defending performance. And we are going to recommend players for Liverpool in each position (Not from their competitors).
+
+## Forward
+
+Clearly they need a player with higher conversion rate.
+
+![](graph/rec_cf.png){width="569"}
+
+## Defensive Midfield
+
+```{r rec_dm}
+data<- pos_radar %>% 
+  filter(Player == "Fabinho" | Player == "Idrissa Gana Gueye") %>% 
+  mutate(name_pos = paste(Player,"",cluster)) %>% 
+  select(-c(Comp,Squad,cluster,Player))
+color = c("#00AFBB", "#E7B800")
+data <- rbind(rep(10,13), rep(0,13), data)
+
+op <- par(mar = c(1,1,1,1))
+create_beautiful_radarchart(
+  data = data[,-13],caxislabels = c(0,5,10),
+  color = color
+)
+legend("topright",
+       legend = data$name_pos[-c(1,2)],
+       bty = "n", pch = 20, col = color,
+       text.col = "grey25", pt.cex = 1.5,cex = 0.8)
+title(main = "Player Stat Metrics")
+par(op)
+```
+
+## Center Back
+
+![](graph/Mings.png)
+
