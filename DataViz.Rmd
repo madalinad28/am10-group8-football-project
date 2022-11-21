@@ -73,29 +73,31 @@ For this project, we retrieved data from [FBref](https://fbref.com/en/), our dat
 
 As last year's league runner-up, Liverpool's performance slipped this season. If we look at Squad's Goal and Goals conceded data, we can observe a huge drop in both attacking and defending performance for Liverpool.
 
-![](liv21.png)
+![](graph/liv21.png)
 
-![](liv22.png)We are going to analyze the reason from player's performance in different positions.
+![](graph/liv22.png)
+
+We are going to analyze the reason from player's performance in different positions.
 
 ## Attacking
 
-![](Attack.png){width="412"}
+![](graph/Attack.png)
 
 In terms of Attacking, Liverpool actually did pretty good in dominating and creating chances. All 3 metrics are ranking 2nd in the league. But they only rank the fifth in terms of goals, which means they are poor at conversion rate. Both Shot on Target Rate and Goals per SoT are below league average.
 
-![](Shot.png)
+![](graph%5CShot.png)
 
 ## Midfield
 
 Midfield is critical for stopping opponent's counter attack, especially for strong teams when facing weaker ones. In terms of press given, 3 main Liverpool midfield players are below the league average and did worse compared to last season. For tackles and intercept, still only Thiago is over league average and two of them did worse than last year.
 
-![](Mid.png){width="562"}
+![](graph%5CMid.png)
 
 ## Defender
 
 Let's look at one of the best center back in the league/the world, Virgil van Dijk's defensive performance.
 
-![](Van.png){width="455"}
+![](graph%5CVan.png)
 
 In terms of aerial won and clearance, Van dijk is still one of the best players. However, his 1 on 1 defending capacity lags behind this season, which is catastrophic if a center back can't stop opponent players.
 
