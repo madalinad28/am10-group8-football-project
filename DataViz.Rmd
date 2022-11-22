@@ -10,16 +10,55 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
 
 ```{r,include=FALSE}
 library(scales)
-library(tidyverse)
 library(readr)
 library(ggplot2)
-library(ggradar)
 library(fmsb)
 library(cluster)
 library(Hmisc)
 library(factoextra)
 library(purrr)
 library(gridExtra)
+library(tidyverse)
+library(extrafont)
+library(vroom)
+library(ggtext)
+library(gapminder)
+library(ggrepel)
+library(patchwork)
+library(gghighlight)
+library(skimr)
+library(lubridate)
+library(jpeg)
+library(png)
+library(patchwork)
+library(maps)
+library(ggstream)
+library(ggmap)
+library(tmap)
+library(tmaptools)
+library(hrbrthemes)
+library(mapview)
+library(viridis)
+library(sf)
+library(here)
+library(countrycode)
+library(ggspatial)
+library(giscoR)
+library(rasterpic)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgdal)
+library(rgeos)
+library(ggpmisc)
+library(ggridges)
+library(reshape2)
+library(lubridate)
+library(ggforce)
+library(ggflags)
+library(grid)
+
+loadfonts(device="win")
+# loadfonts(device="pdf") if you have a mac
 
 ```
 
@@ -73,55 +112,13 @@ For this project, we retrieved data from [FBref](https://fbref.com/en/), our dat
 
 ## EDA
 
-```{r libraries, include=FALSE}
-library(tidyverse)
-library(extrafont)
-library(vroom)
-library(ggtext)
-library(gapminder)
-library(ggrepel)
-library(patchwork)
-library(gghighlight)
-library(skimr)
-library(lubridate)
-library(jpeg)
-library(png)
-library(patchwork)
-library(maps)
-library(ggstream)
-library(ggmap)
-library(tmap)
-library(tmaptools)
-library(hrbrthemes)
-library(mapview)
-library(viridis)
-library(sf)
-library(here)
-library(countrycode)
-library(ggspatial)
-library(giscoR)
-library(rasterpic)
-library(rnaturalearth)
-library(rnaturalearthdata)
-library(rgdal)
-library(rgeos)
-library(ggpmisc)
-
-loadfonts(device="win")
-# loadfonts(device="pdf") if you have a mac
-
-```
-
 ```{r, add player data and clean,include=FALSE}
-# Load all CSV files of different years into R
-fifa_players <- list.files(path = "data/players",  
-                           # Identify all CSV files
-                       pattern = "*.csv", full.names = TRUE) %>% 
-  lapply(read_csv) %>%                              
-  
-  # Store all files in list
-  bind_rows                                         
+                                      
 # Combine data sets into one data set 
+list_csv_files <- c("data/players/players_15.csv", "data/players/players_16.csv", "data/players/players_17.csv", "data/players/players_18.csv",
+                    "data/players/players_19.csv","data/players/players_20.csv","data/players/players_21.csv", "data/players/players_22.csv")
+fifa_players <- readr::read_csv(list_csv_files, id = "fifa_edit") 
+fifa_players$fifa_edit = substr(fifa_players$fifa_edit,22,23)
 
 # Define leagues of interest
 leagues = c("German 1. Bundesliga", "English Premier League", "Italian Serie A", "Spain Primera Division", "French Ligue 1")
@@ -229,139 +226,12 @@ eur_countries <- c("Austria","Belgium","Bulgaria","Croatia","Cyprus",
                     "Portugal","Romania","Slovakia","Slovenia","Spain",
                     "Sweden", "Switzerland", "United Kingdom")
 
-# Import data on team logo pngs
-team_logos <- read.csv("data/team_logos.csv")
-
-# Find top team based on SPI per country
-team_spi_top <- team_spi %>% 
-  group_by(name) %>% # group for summarization
-  slice_max(spi, n = 1) %>% # find top team per country
-  filter(name %in% eur_countries) %>% # only select european teams
-  left_join(team_logos, by = "team") # join logo png data for later fill
-
-# Get map of Europe data
-eu_map <- map %>% 
-  filter(name %in% eur_countries)
-
-# Join map geom data with png and SPI data
-plot <- eu_map %>% 
-  left_join(team_spi_top, by = "name")
-
-# Create map of Europe
-actual_map <- eu_map %>% 
-  ggplot() +
-    geom_sf(color = "black", fill = "#E4F2E7") + # Define border and fill colours
-    coord_sf(crs = "+proj=robin") + # change coords to create more accurate map
-    theme_minimal() + # Change theme
-    theme(panel.grid = element_blank(), # remove gridlines
-          panel.background = element_blank(), # remove background
-          plot.title.position = "plot", # left align title
-          plot.title = element_textbox_simple(size=15)) + # change title size) +
-  # Adjust labels
-    labs(title = "<b>Every country has its best-performing team, but there are gaps between nations </b><br>
-          Logos of the currently best performing teams according to fivethirtyeight per country")
-
-# Create loop to download and add logos to map
-for (row in 1:nrow(team_logos)) {
-  if(team_logos[row,2] == "") next # skip if no data is available for logo
-  # Download pic and plot
-  imgurl <- team_logos[row,2] # retrieve file url
-  tmpfile <- tempfile(fileext = ".png") # define temporary save location
-  download.file(url = imgurl, destfile = tmpfile, quiet = TRUE, mode = "wb") # download logo
-
-  # Raster
-  x <- plot[row,]
-  x_rast <- rasterpic_img(x, tmpfile, crop = TRUE, mask = TRUE) # define variable for png
-  actual_map <- actual_map + layer_spatial(x_rast) # add logo to map
-}
-
-# Download logos not added automatically to plot, due to faulty geom data from naturalearth
-psg <- readPNG("data/logos_extra/psg.png", native = TRUE) # load image for graph
-ajax <- readPNG("data/logos_extra/ajax.png", native = TRUE) # load image for graph
-barcelona <- readPNG("data/logos_extra/barcelona.png", native = TRUE) # load image for graph
-porto <- readPNG("data/logos_extra/porto.png", native = TRUE) # load image for graph
-
-# Add logo of PSG
-actual_map_comp <- actual_map +
-    xlim(-20, 55) +
-    ylim(35, 70) +
-    theme(axis.text = element_blank(),
-          panel.background = element_blank()) +
-    inset_element(p = psg,
-                 left = 0.24,
-                 bottom = 0.29,
-                 right = 0.4,
-                 top = 0.41) +
-    theme(rect  = element_rect(fill="transparent", linetype = "blank"))
-
-# Add logo of Ajax
-actual_map_comp <- actual_map_comp + 
-  inset_element(p = ajax,
-                 left = 0.335,
-                 bottom = 0.48,
-                 right = 0.375,
-                 top = 0.52) +
-  theme(rect  = element_rect(fill="transparent", linetype = "blank"))
-  
-# Add logo of Barcelona
-actual_map_comp <- actual_map_comp +   
-    inset_element(p = barcelona,
-                 left = 0.205,
-                 bottom = 0.07,
-                 right = 0.285,
-                 top = 0.3) +
-    theme(rect  = element_rect(fill="transparent", linetype = "blank"))
-
-# Add logo of FC Porto
-actual_map_comp <- actual_map_comp +
-    inset_element(p = porto,
-                 left = 0.165,
-                 bottom = 0.18,
-                 right = 0.215,
-                 top = 0.21) +
-    theme(rect  = element_rect(fill="transparent", linetype = "blank"))
-
-actual_map_comp
-
-# Save plot
-ggsave(
-  plot = actual_map_comp,
-  filename = "map_best_teams.png",
-  bg = "transparent"
-)
-
-# Create table of SPI values of top teams per country in order
-spi_table <- team_spi_top %>% 
-  select(name, spi) %>% 
-  rename("Country" = "name", "SPI" = "spi") %>% 
-  arrange(desc(SPI))
 ```
 
 ## Transfer
 
 ```{r library}
-library(tidyverse)
-library(extrafont)
-library(vroom)
-library(ggtext)
-library(gapminder)
-library(ggrepel)
-library(patchwork)
-library(gghighlight)
-library(skimr)
-library(ggridges)
-library(maps)
-library(reshape2)
-library(rgdal)
-library(lubridate)
-library(ggforce)
-library(tidyr)
-library(dplyr)
-library(countrycode)
-library(ggflags)
-library(png)
-library(grid)
-library(sf) # for geospatial visualisation
+
 #read csv file
 data_dir <- "~/Desktop/LBS/am10-group8-football-project/data/transfer"
 
