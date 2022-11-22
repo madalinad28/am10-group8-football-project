@@ -186,7 +186,7 @@ players_by_country <- map %>%
   ggplot() +
     geom_sf(mapping = aes(geometry = geometry, fill = log10(count), color = liverpool)) + 
     coord_sf(crs = "+proj=robin") +  # change coords for more accurate representation of map
-    scale_color_manual(values = c("#838383", "red"), guide = "none") + # define manual colors for highlight countries of interest
+    scale_color_manual(values = c("#838383", "#17B1A7"), guide = "none") + # define manual colors for highlight countries of interest
     scale_fill_gradient(
     low = "#E4F2E7",
     high = '#00381F',
@@ -202,7 +202,7 @@ players_by_country <- map %>%
           plot.title.position = "plot", # left align title
           plot.title = element_textbox_simple(size=15)) + # change title size
   # Change labels
-  labs(title = "<b><span style='color:red'> Liverpool</span> historically sourced their players from the same areas as the rest of the Premier League</span></b><br>
+  labs(title = "<b><span style='color:#17B1A7'> Liverpool</span> historically sourced their players from the same areas as the rest of the Premier League</span></b><br>
          <span style = 'font-size:12pt'>Representation of nationalities in the Premier League since 2015",
          fill = "Playercount",
          x = "",
@@ -236,14 +236,15 @@ FCL_age_years <- fifa_players %>%
   filter(club_name == "Liverpool") %>% 
   mutate(fifa_edit = (paste0(20,fifa_edit))) %>% 
   ggplot(aes(x = fifa_edit, y = age)) + 
-    geom_boxplot() +
+    geom_boxplot(fill = "#C71C2F") +
     theme_minimal() +
-    stat_summary(fun.y=mean, geom="point", shape=20, size=8, color="#6DBF7D", fill="#6DBF7D") +
+    stat_summary(fun.y=mean, geom="point", shape=20, size=8, color="#17B1A7", fill="#17B1A7") +
     theme(panel.background = element_blank(), # remove background
           plot.title.position = "plot", # left align title
-          panel.grid.minor = element_blank(), # remove minor gridlines
-          panel.grid.major.x = element_blank(),  # remove major gridlines of y axis
-          plot.title = element_textbox_simple(size=15)) + # change title size
+          panel.grid = element_blank(), # remove gridlines
+          axis.text = element_text(size = 14), # change font size of text
+          axis.title = element_text(size = 16), # Change font size of text
+          plot.title = element_textbox_simple(size=24)) + # change title size
     # Add arrow to highlight biggest outlier
     geom_curve(
       data = data.frame(x = 3.9, y = 36, xend = 3.05, yend = 38.5),
@@ -255,25 +256,34 @@ FCL_age_years <- fifa_players %>%
       inherit.aes = FALSE) +
   # Add text to highlight biggest outlier
     geom_text(
-      data = data.frame(x = 5, y = 36, label = "Alexander Manninger\nGoalkeeper"),
+      data = data.frame(x = 4.5, y = 36, label = "Alexander Manninger\nGoalkeeper"),
       aes(x = x, y = y, label = label),
       colour="#2B4F34",
       family="Lato",
+      size = 5,
       hjust = 0.5,
       lineheight = .8,
       inherit.aes = FALSE) +
   # Change labels
-    labs(title = "<b>The <span style='color:#6DBF7D'>average age</span> of Liverpool players has increased over time</span></b><br>
-         <span style = 'font-size:12pt'>Distribution of Liverpool player age per year",
+    labs(title = "<b>The <span style='color:#17B1A7'>average age</span> of Liverpool players has increased over time</span></b><br>
+         <span style = 'font-size:18pt'>Distribution of Liverpools' player age per year<br> ",
          fill = "Playercount",
          x = "Year",
          y = "Age")
-  
-FCL_age_years + inset_element(p = img_manninger,
-                 left = 0.45,
+
+FCL_age_pic <- FCL_age_years + inset_element(p = img_manninger,
+                 left = 0.35,
                  bottom = 0.88,
                  right = 0.55,
-                 top = 1)
+                 top = 1.1)
+
+# Save plot
+ggsave(
+  plot = FCL_age_pic,
+  filename = "FCL_age_pic.png",
+  bg = "transparent",
+  width = 15
+)
 ```
 
 ## Transfer
