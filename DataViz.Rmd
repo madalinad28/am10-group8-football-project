@@ -119,7 +119,9 @@ list_csv_files <- c("data/players/players_15.csv", "data/players/players_16.csv"
                     "data/players/players_19.csv","data/players/players_20.csv","data/players/players_21.csv", "data/players/players_22.csv")
 fifa_players <- readr::read_csv(list_csv_files, id = "fifa_edit") 
 fifa_players$fifa_edit = substr(fifa_players$fifa_edit,22,23)
-fifa_players23 <- read_csv("data/players/players_23.csv", id = "fifa_edit")
+fifa_players23 <- read_csv("data/players/players_23.csv", id = "fifa_edit") %>% 
+  janitor::clean_names()
+fifa_players23$fifa_edit = substr(fifa_players23$fifa_edit,22,23)
 
 # Define leagues of interest
 leagues = c("German 1. Bundesliga", "English Premier League", "Italian Serie A", "Spain Primera Division", "French Ligue 1")
@@ -221,9 +223,57 @@ ggsave(
 
 ```{r map of best teams per country}
 
-FCL_age_hist <- fifa_players %>% 
-  
+fifa_players23_age <- fifa_players23 %>% 
+  select(fifa_edit, age, club) %>%
+  rename(club_name = club)
 
+img_manninger <- readJPEG("data/manninger.jpeg", native = TRUE)
+
+# Create plot
+FCL_age_years <- fifa_players %>% 
+  select(fifa_edit, age, club_name) %>%
+  rbind(fifa_players23_age) %>% 
+  filter(club_name == "Liverpool") %>% 
+  mutate(fifa_edit = (paste0(20,fifa_edit))) %>% 
+  ggplot(aes(x = fifa_edit, y = age)) + 
+    geom_boxplot() +
+    theme_minimal() +
+    stat_summary(fun.y=mean, geom="point", shape=20, size=8, color="#6DBF7D", fill="#6DBF7D") +
+    theme(panel.background = element_blank(), # remove background
+          plot.title.position = "plot", # left align title
+          panel.grid.minor = element_blank(), # remove minor gridlines
+          panel.grid.major.x = element_blank(),  # remove major gridlines of y axis
+          plot.title = element_textbox_simple(size=15)) + # change title size
+    # Add arrow to highlight biggest outlier
+    geom_curve(
+      data = data.frame(x = 3.9, y = 36, xend = 3.05, yend = 38.5),
+      mapping = aes(x = x, y = y, xend = xend, yend = yend),
+      colour = "grey15",
+      size = 0.5,
+      curvature = -0.5,
+      arrow = arrow(length = unit(2, "mm"), type = "closed"),
+      inherit.aes = FALSE) +
+  # Add text to highlight biggest outlier
+    geom_text(
+      data = data.frame(x = 5, y = 36, label = "Alexander Manninger\nGoalkeeper"),
+      aes(x = x, y = y, label = label),
+      colour="#2B4F34",
+      family="Lato",
+      hjust = 0.5,
+      lineheight = .8,
+      inherit.aes = FALSE) +
+  # Change labels
+    labs(title = "<b>The <span style='color:#6DBF7D'>average age</span> of Liverpool players has increased over time</span></b><br>
+         <span style = 'font-size:12pt'>Distribution of Liverpool player age per year",
+         fill = "Playercount",
+         x = "Year",
+         y = "Age")
+  
+FCL_age_years + inset_element(p = img_manninger,
+                 left = 0.45,
+                 bottom = 0.88,
+                 right = 0.55,
+                 top = 1)
 ```
 
 ## Transfer
