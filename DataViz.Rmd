@@ -5,7 +5,7 @@ date: "2022-11-17"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
 ```
 
 ```{r,include=FALSE}
@@ -71,35 +71,469 @@ create_beautiful_radarchart <- function(data, color = "#00AFBB",
 
 For this project, we retrieved data from [FBref](https://fbref.com/en/), our data contain Football Clubs and Players' performance stat in the Top 5 European Leagues last season and this season. To organize our study more smoothly, we also find several data such as FIFA net income and player transfer history. In this project, we dived into Premier League and studied why Liverpool's performance has been worse this season. At the end, we also implemented K-means clustering, try to identify different roles within each position.
 
+## EDA
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(extrafont)
+library(vroom)
+library(ggtext)
+library(gapminder)
+library(ggrepel)
+library(patchwork)
+library(gghighlight)
+library(skimr)
+library(lubridate)
+library(jpeg)
+library(png)
+library(patchwork)
+library(maps)
+library(ggstream)
+library(ggmap)
+library(tmap)
+library(tmaptools)
+library(hrbrthemes)
+library(mapview)
+library(viridis)
+library(sf)
+library(here)
+library(countrycode)
+library(ggspatial)
+library(giscoR)
+library(rasterpic)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgdal)
+library(rgeos)
+library(ggpmisc)
+
+loadfonts(device="win")
+# loadfonts(device="pdf") if you have a mac
+
+```
+
+```{r, add player data and clean,include=FALSE}
+# Load all CSV files of different years into R
+fifa_players <- list.files(path = "data/players",  
+                           # Identify all CSV files
+                       pattern = "*.csv", full.names = TRUE) %>% 
+  lapply(read_csv) %>%                              
+  
+  # Store all files in list
+  bind_rows                                         
+# Combine data sets into one data set 
+
+# Define leagues of interest
+leagues = c("German 1. Bundesliga", "English Premier League", "Italian Serie A", "Spain Primera Division", "French Ligue 1")
+
+# Clean data
+fifa_players_clean <- fifa_players %>% 
+  filter(league_name %in% leagues) %>% # Filter out all players not in the league of interest
+  distinct(sofifa_id, .keep_all = TRUE) %>% # Filter out duplicate players due to multiple years of data
+  mutate(nationality_name = replace(nationality_name, nationality_name == "Korea DPR", "Korea Republic")) # combine Korea DPR and Korea Republic
+
+# Calculate number of players per nation
+nations_n <- fifa_players_clean %>% 
+  group_by(nationality_name) %>% # group for summarization
+  # adjust names to match sf data
+  mutate(nationality_name = recode(nationality_name, 
+                                   "Bosnia and Herzegovina" = "Bosnia and Herz.",
+                                   "Brunei Darussalam" = "Brunei",
+                                   "Cape Verde Islands" = "Cape Verde",
+                                   "Central African Republic" = "Central African Rep.",
+                                   "China PR" = "China",
+                                   "Congo DR" = "Dem. Rep. Congo",
+                                   "Curacao" = "Curaçao",
+                                   "Czech Republic" = "Czech Rep.",
+                                   "Dominican Republic" = "Dominican Rep.",
+                                   "England" = "United Kingdom",
+                                   "Equatorial Guinea" = "Eq. Guinea",
+                                   "Faroe Islands" = "Faeroe Is.",
+                                   "Guinea Bissau" = "Guinea-Bissau",
+                                   "Korea Republic" = "Dem. Rep. Korea",
+                                   "Macau" = "Macao",
+                                   "North Macedonia" = "Macedonia",
+                                   "Northern Ireland" = "Ireland",
+                                   "Republic of Ireland" = "Ireland",
+                                   "Saint Kitts and Nevis" = "St. Kitts and Nevis",
+                                   "Scotland" = "United Kingdom",
+                                   "South Sudan" = "Sudan",
+                                   "Wales" = "United Kingdom")) %>%
+  count() %>% # calculate sum
+  mutate(africa = ifelse(nationality_name %in% c("Senegal", "Côte d'Ivoire", "Ghana", "Morocco", "Nigeria", "Cameroon", "Algeria", "Mali", "Dem. Rep. Congo"), TRUE, FALSE)) %>% 
+  # create column to highlight African nations of interest
+  rename(name = nationality_name) %>% # rename columns for later joining
+  filter(!name %in% c("Germany", "France", "Italy", "United Kingdom", "Spain")) %>% 
+  mutate(count = n) %>% 
+  select(-n)# deselect values of league host countries due to unnaturally high value
+
+```
+
+```{r create map with player density}
+
+# Create map of the world
+map <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  dplyr::select(name, iso_a3, geometry) %>%
+  filter(!name %in% c("Greenland", "Antarctica"))
+
+# Create map filled with count of players per nation
+players_by_country <- map %>% 
+  left_join(nations_n, by = "name") %>% # join map data with calculation of player count
+  # Create plot
+  ggplot() +
+    geom_sf(mapping = aes(geometry = geometry, fill = log10(count), colour = africa)) + # colour to highlight African countries of interest
+    coord_sf(crs = "+proj=robin") +  # change coords for more accurate representation of map
+    scale_color_manual(values = c("#838383", "#04f5ff"), guide = "none") + # define manual colours for highlight African countries of interest
+    scale_fill_gradient(
+    low = "#E4F2E7",
+    high = '#00381F',
+    na.value = "grey60",) + # change gradient fill colours
+    theme(panel.background = element_blank(), # remove background
+          axis.ticks = element_blank(), # remove axis ticks
+          legend.title = element_text(size = 9), # adjust legend title size
+          legend.text = element_text(size = 8), # adjust legend text size
+          axis.text = element_blank(), # remove axis labels
+          plot.title.position = "plot", # left align title
+          plot.title = element_textbox_simple(size=15)) + # change title size
+  # Change labels
+  labs(title = "<b>Several<span style='color:#04f5ff'> African countries</span> seem to produce top-tier football players</span></b><br>
+         <span style = 'font-size:12pt'>Number of unique players in the top 5 European leagues between 2015 and 2022",
+         fill = "Playercount (log10)",
+         x = "",
+         y = "") +
+  xlim(-13000000,15000000) # change span of x axis
+
+# View map
+players_by_country
+
+# Save plot
+ggsave(
+  plot = players_by_country,
+  filename = "players_by_country.png",
+  bg = "transparent"
+)
+
+```
+
+```{r map of best teams per country}
+
+# Download team spi data
+team_spi <- read.csv("data/spi_global_rankings.csv", header = TRUE) %>% 
+  rename(name = country)
+
+# Define countries of Europe
+eur_countries <- c("Austria","Belgium","Bulgaria","Croatia","Cyprus",
+                    "Czech Rep.","Denmark","Estonia","Finland","France",
+                    "Germany","Greece","Hungary","Ireland","Italy","Latvia",
+                    "Lithuania","Luxembourg","Malta","Netherlands","Norway", "Poland",
+                    "Portugal","Romania","Slovakia","Slovenia","Spain",
+                    "Sweden", "Switzerland", "United Kingdom")
+
+# Import data on team logo pngs
+team_logos <- read.csv("data/team_logos.csv")
+
+# Find top team based on SPI per country
+team_spi_top <- team_spi %>% 
+  group_by(name) %>% # group for summarization
+  slice_max(spi, n = 1) %>% # find top team per country
+  filter(name %in% eur_countries) %>% # only select european teams
+  left_join(team_logos, by = "team") # join logo png data for later fill
+
+# Get map of Europe data
+eu_map <- map %>% 
+  filter(name %in% eur_countries)
+
+# Join map geom data with png and SPI data
+plot <- eu_map %>% 
+  left_join(team_spi_top, by = "name")
+
+# Create map of Europe
+actual_map <- eu_map %>% 
+  ggplot() +
+    geom_sf(color = "black", fill = "#E4F2E7") + # Define border and fill colours
+    coord_sf(crs = "+proj=robin") + # change coords to create more accurate map
+    theme_minimal() + # Change theme
+    theme(panel.grid = element_blank(), # remove gridlines
+          panel.background = element_blank(), # remove background
+          plot.title.position = "plot", # left align title
+          plot.title = element_textbox_simple(size=15)) + # change title size) +
+  # Adjust labels
+    labs(title = "<b>Every country has its best-performing team, but there are gaps between nations </b><br>
+          Logos of the currently best performing teams according to fivethirtyeight per country")
+
+# Create loop to download and add logos to map
+for (row in 1:nrow(team_logos)) {
+  if(team_logos[row,2] == "") next # skip if no data is available for logo
+  # Download pic and plot
+  imgurl <- team_logos[row,2] # retrieve file url
+  tmpfile <- tempfile(fileext = ".png") # define temporary save location
+  download.file(url = imgurl, destfile = tmpfile, quiet = TRUE, mode = "wb") # download logo
+
+  # Raster
+  x <- plot[row,]
+  x_rast <- rasterpic_img(x, tmpfile, crop = TRUE, mask = TRUE) # define variable for png
+  actual_map <- actual_map + layer_spatial(x_rast) # add logo to map
+}
+
+# Download logos not added automatically to plot, due to faulty geom data from naturalearth
+psg <- readPNG("data/logos_extra/psg.png", native = TRUE) # load image for graph
+ajax <- readPNG("data/logos_extra/ajax.png", native = TRUE) # load image for graph
+barcelona <- readPNG("data/logos_extra/barcelona.png", native = TRUE) # load image for graph
+porto <- readPNG("data/logos_extra/porto.png", native = TRUE) # load image for graph
+
+# Add logo of PSG
+actual_map_comp <- actual_map +
+    xlim(-20, 55) +
+    ylim(35, 70) +
+    theme(axis.text = element_blank(),
+          panel.background = element_blank()) +
+    inset_element(p = psg,
+                 left = 0.24,
+                 bottom = 0.29,
+                 right = 0.4,
+                 top = 0.41) +
+    theme(rect  = element_rect(fill="transparent", linetype = "blank"))
+
+# Add logo of Ajax
+actual_map_comp <- actual_map_comp + 
+  inset_element(p = ajax,
+                 left = 0.335,
+                 bottom = 0.48,
+                 right = 0.375,
+                 top = 0.52) +
+  theme(rect  = element_rect(fill="transparent", linetype = "blank"))
+  
+# Add logo of Barcelona
+actual_map_comp <- actual_map_comp +   
+    inset_element(p = barcelona,
+                 left = 0.205,
+                 bottom = 0.07,
+                 right = 0.285,
+                 top = 0.3) +
+    theme(rect  = element_rect(fill="transparent", linetype = "blank"))
+
+# Add logo of FC Porto
+actual_map_comp <- actual_map_comp +
+    inset_element(p = porto,
+                 left = 0.165,
+                 bottom = 0.18,
+                 right = 0.215,
+                 top = 0.21) +
+    theme(rect  = element_rect(fill="transparent", linetype = "blank"))
+
+actual_map_comp
+
+# Save plot
+ggsave(
+  plot = actual_map_comp,
+  filename = "map_best_teams.png",
+  bg = "transparent"
+)
+
+# Create table of SPI values of top teams per country in order
+spi_table <- team_spi_top %>% 
+  select(name, spi) %>% 
+  rename("Country" = "name", "SPI" = "spi") %>% 
+  arrange(desc(SPI))
+```
+
+## Transfer
+
+```{r library}
+library(tidyverse)
+library(extrafont)
+library(vroom)
+library(ggtext)
+library(gapminder)
+library(ggrepel)
+library(patchwork)
+library(gghighlight)
+library(skimr)
+library(ggridges)
+library(maps)
+library(reshape2)
+library(rgdal)
+library(lubridate)
+library(ggforce)
+library(tidyr)
+library(dplyr)
+library(countrycode)
+library(ggflags)
+library(png)
+library(grid)
+library(sf) # for geospatial visualisation
+#read csv file
+data_dir <- "~/Desktop/LBS/am10-group8-football-project/data/transfer"
+
+files <- fs::dir_ls(path = data_dir, regexp = "\\.csv$", recurse = TRUE) 
+#recurse=TRUE will recursively look for files further down into any folders
+
+#read them all in using vroom::vroom()
+football_transfer <- vroom(files, id = "source")
+# Use janitor to clean names, and add more variables
+football_transfer_all <- football_transfer %>%
+  janitor::clean_names()  
+
+# skimr::skim() to inspect and get a feel for the data         
+skim(football_transfer_all)
+
+#create df to select only the most expensive transfer/year since 1990
+top_football_transfers <- football_transfer_all %>% 
+  drop_na(fee_cleaned) %>% 
+  filter(year > 1999) %>% 
+  group_by(year) %>% 
+  slice(which.max(fee_cleaned)) %>% 
+  select(year, fee_cleaned, player_name)
+
+#create a list of the nationalities of each transfer (because the information was not available)
+nationality <- c("Portugal", "France", "United Kingdom", " United Kingdom", "Ivory Coast",
+                 "Ghana", "Ukraine", "Spain", "Brazil", "Portugal", "Spain", "Argentina",
+                 "Brazil", "United Kingdom", "Uruguay", "Belgium", "France", "Brazil", "France", 
+                 "Portugal", "Germany", "United Kingdom")
+
+#add the nationality column to the df and convert it to iso2c codes
+top_football_transfers$nationality <- nationality 
+top_football_transfers$iso3 <-countrycode(top_football_transfers$nationality ,"country.name", "iso2c")
+top_football_transfers$iso3  <- tolower(top_football_transfers$iso3 )
+
+#create the annotation for the first outlier and upload the image
+annotation1 <- data.frame(
+   x = 2009,
+   y = 110,
+   label = c("Cristiano Ronaldo \n Real Madrid -> Manchester United"))
+img1 <- readPNG("C:/Users/ty/Desktop/LBS/am10-group8-football-project/data/transfer/ronaldo.png")
+r <- rasterGrob(img1, interpolate=TRUE)
+
+#create the annotation for the second outlier and upload the image
+annotation2 <- data.frame(
+   x = 2017,
+   y = 240,
+   label = c("Neymar \n  Barcelona FC -> PSG"))
+img2 <- readPNG("C:/Users/ty/Desktop/LBS/am10-group8-football-project/data/transfer/neymar.png")
+n <- rasterGrob(img2, interpolate=TRUE)
+
+#create the annotation for the third outlier and upload the image
+annotation3 <- data.frame(
+   x = 2020,
+   y = 110,
+   label = c("Kai Havertz \n Bayer  \n Leverkusen \n -> Chelsea "))
+img3 <- readPNG("C:/Users/ty/Desktop/LBS/am10-group8-football-project/data/transfer/kai.png")
+k <- rasterGrob(img3, interpolate=TRUE)
+
+
+  top_football_transfers$color <- ifelse(top_football_transfers$year == "2009" | top_football_transfers$year == "2017" | top_football_transfers$year == "2020", '#2a7e19', '#825736')
+
+
+v <- top_football_transfers %>%
+  ggplot(aes(x = year, y = fee_cleaned))+
+  #geom_bar(stat = "identity", color = 'green', fill = '#2a7e19') +
+  geom_bar(stat = 'identity', aes(fill = color), width = 0.6) +
+  scale_fill_manual(values=c('#2a7e19', '#C5C5C5')) +
+  #add flags to the graph
+  geom_flag(y = -1, aes(country = iso3), size = 50) +
+  #add limits to the x and y axis
+  ylim(0,300) +
+  scale_x_continuous(breaks = seq(2000,2021,1))+
+  #set the theme, and add the annotations 
+  theme_bw()+
+  theme(aspect.ratio = 10/29,
+    panel.grid = element_blank(),
+    legend.title = element_blank(),
+    legend.text  = element_blank(),
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.title = element_text(family = "Arial",
+                              size = 60, 
+                              colour = "#222222", 
+                              face = 'bold',
+                              hjust = 0,
+                              vjust = 2),   
+    plot.subtitle = element_text(family = "Arial",
+                                 size = 40,
+                                 face = 'plain',
+                                 colour = "#222222", 
+                                 hjust = 0,
+                                 vjust = 2),
+    axis.text = element_text( size= 40, margin = margin(t = 100)),
+    axis.title = element_text(size = 40)) +
+    geom_text(data=annotation1, 
+              aes(x=x, y =y, label=label),                 , 
+              color="black", 
+              size=15 , 
+              angle=0, 
+              fontface="bold") +
+    annotation_custom(grob = r, 
+                      xmin = 2008, 
+                      xmax = 2010, 
+                      ymin = 125, 
+                      ymax = 165) +
+    geom_text(data=annotation2, 
+              aes( x=x, y =y,  label=label),                 , 
+              color="black", 
+              size=15 , 
+              angle=0, 
+              fontface="bold" ) +
+    annotation_custom(grob = n, 
+                      xmin = 2016, 
+                      xmax = 2018, 
+                      ymin = 250, 
+                      ymax = 290) +
+    geom_text(data=annotation3, 
+              aes( x=x, y =y, label=label),                 , 
+              color="black", 
+              size=15 , 
+              angle=0, 
+              fontface="bold" ) +
+    annotation_custom(grob = k, 
+                      xmin = 2019, 
+                      xmax = 2021, 
+                      ymin = 140, 
+                      ymax = 170) +
+    labs( title = "Since 2013, the football transfer market has become more volatile compared to the early 2000's",
+          subtitle = "The most expensive football transfers of each year and the player's nationalities", 
+          citation = " ", 
+          x = "",
+          y = "Total transfer fee (€ millions)")
+
+v
+
+ 
+```
+
+## Market Value
+
+![](graph/mv.jpg)
+
 # Liverpool's Performance
 
 As last year's league runner-up, Liverpool's performance slipped this season. If we look at Squad's Goal and Goals conceded data, we can observe a huge drop in both attacking and defending performance for Liverpool.
 
-![](graph/liv21.png)
+![](graph/liv21.jpeg)
 
-![](graph/liv22.png)
+![](graph/liv22.jpeg)
 
 We are going to analyze the reason from player's performance in different positions.
 
 ## Attacking
 
-![](graph/Attack.png)
+![](graph/Attack.jpeg)
 
 In terms of Attacking, Liverpool actually did pretty good in dominating and creating chances. All 3 metrics are ranking 2nd in the league. But they only rank the fifth in terms of goals, which means they are poor at conversion rate. Both Shot on Target Rate and Goals per SoT are below league average.
 
-![](graph%5CShot.png)
+![](graph/Shot.jpeg)
 
 ## Midfield
 
 Midfield is critical for stopping opponent's counter attack, especially for strong teams when facing weaker ones. In terms of press given, 3 main Liverpool midfield players are below the league average and did worse compared to last season. For tackles and intercept, still only Thiago is over league average and two of them did worse than last year.
 
-![](graph%5CMid.png)
+![](graph/tk.jpeg)
 
 ## Defender
 
 Let's look at one of the best center back in the league/the world, Virgil van Dijk's defensive performance.
 
-![](graph%5CVan.png)
+![](graph/van.jpeg)
 
 In terms of aerial won and clearance, Van dijk is still one of the best players. However, his 1 on 1 defending capacity lags behind this season, which is catastrophic if a center back can't stop opponent players.
 
@@ -139,6 +573,7 @@ legend("topright",
        bty = "n", pch = 20, col = color,
        text.col = "grey25", pt.cex = 1.5,cex = 0.8)
 title(main = "Player Stat Metrics")
+
 par(op)
 ```
 
@@ -415,7 +850,7 @@ We have identified the problem Liverpool is facing this season: Poor conversion 
 
 Clearly they need a player with higher conversion rate.
 
-![](graph/rec_cf.png){width="569"}
+![](graph/lookman.jpeg)
 
 ## Defensive Midfield
 
@@ -442,5 +877,4 @@ par(op)
 
 ## Center Back
 
-![](graph/Mings.png)
-
+![](graph/mings.jpeg)
