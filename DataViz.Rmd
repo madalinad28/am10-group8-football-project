@@ -119,20 +119,13 @@ list_csv_files <- c("data/players/players_15.csv", "data/players/players_16.csv"
                     "data/players/players_19.csv","data/players/players_20.csv","data/players/players_21.csv", "data/players/players_22.csv")
 fifa_players <- readr::read_csv(list_csv_files, id = "fifa_edit") 
 fifa_players$fifa_edit = substr(fifa_players$fifa_edit,22,23)
+fifa_players23 <- read_csv("data/players/players_23.csv", id = "fifa_edit")
 
 # Define leagues of interest
 leagues = c("German 1. Bundesliga", "English Premier League", "Italian Serie A", "Spain Primera Division", "French Ligue 1")
 
 # Clean data
 fifa_players_clean <- fifa_players %>% 
-  filter(league_name %in% leagues) %>% # Filter out all players not in the league of interest
-  distinct(sofifa_id, .keep_all = TRUE) %>% # Filter out duplicate players due to multiple years of data
-  mutate(nationality_name = replace(nationality_name, nationality_name == "Korea DPR", "Korea Republic")) # combine Korea DPR and Korea Republic
-
-# Calculate number of players per nation
-nations_n <- fifa_players_clean %>% 
-  group_by(nationality_name) %>% # group for summarization
-  # adjust names to match sf data
   mutate(nationality_name = recode(nationality_name, 
                                    "Bosnia and Herzegovina" = "Bosnia and Herz.",
                                    "Brunei Darussalam" = "Brunei",
@@ -155,14 +148,25 @@ nations_n <- fifa_players_clean %>%
                                    "Saint Kitts and Nevis" = "St. Kitts and Nevis",
                                    "Scotland" = "United Kingdom",
                                    "South Sudan" = "Sudan",
-                                   "Wales" = "United Kingdom")) %>%
-  count() %>% # calculate sum
-  mutate(africa = ifelse(nationality_name %in% c("Senegal", "Côte d'Ivoire", "Ghana", "Morocco", "Nigeria", "Cameroon", "Algeria", "Mali", "Dem. Rep. Congo"), TRUE, FALSE)) %>% 
-  # create column to highlight African nations of interest
-  rename(name = nationality_name) %>% # rename columns for later joining
-  filter(!name %in% c("Germany", "France", "Italy", "United Kingdom", "Spain")) %>% 
-  mutate(count = n) %>% 
-  select(-n)# deselect values of league host countries due to unnaturally high value
+                                   "Wales" = "United Kingdom",
+                                   "Korea DPR" = "Korea Republic"))
+
+FCL_countries <- fifa_players_clean %>% 
+  filter(club_name == "Liverpool") %>%
+  distinct(nationality_name, .keep_all = FALSE)
+
+FCL_countries_v <- c("United Kingdom", "Belgium", "Italy", "Slovakia", "France", "Brazil", "Croatia", "Côte d'Ivoire", "Spain", "Serbia", "Germany", "Australia", "Ireland", "Hungary", "Cameroon", "Netherlands", "Estonia", "Senegal", "Austria", "Egypt", "Guinea", "Switzerland", "Algeria", "Japan", "Greece")
+
+
+# Calculate number of players from each nation in Premier League
+PL_n_nation <- fifa_players_clean %>% 
+  filter(league_name == "English Premier League") %>% 
+  distinct(sofifa_id, .keep_all = TRUE) %>% 
+  select(nationality_name) %>% 
+  rename(name = nationality_name) %>% 
+  group_by(name) %>% 
+  summarise(count = n()) %>% 
+  mutate(liverpool = ifelse(name %in% FCL_countries_v, TRUE, FALSE))
 
 ```
 
@@ -175,16 +179,19 @@ map <- ne_countries(scale = "medium", returnclass = "sf") %>%
 
 # Create map filled with count of players per nation
 players_by_country <- map %>% 
-  left_join(nations_n, by = "name") %>% # join map data with calculation of player count
+  left_join(PL_n_nation, by = "name") %>% # join map data with calculation of player count
   # Create plot
   ggplot() +
-    geom_sf(mapping = aes(geometry = geometry, fill = log10(count), colour = africa)) + # colour to highlight African countries of interest
+    geom_sf(mapping = aes(geometry = geometry, fill = log10(count), color = liverpool)) + 
     coord_sf(crs = "+proj=robin") +  # change coords for more accurate representation of map
-    scale_color_manual(values = c("#838383", "#04f5ff"), guide = "none") + # define manual colours for highlight African countries of interest
+    scale_color_manual(values = c("#838383", "red"), guide = "none") + # define manual colors for highlight countries of interest
     scale_fill_gradient(
     low = "#E4F2E7",
     high = '#00381F',
-    na.value = "grey60",) + # change gradient fill colours
+    na.value = "lightgrey",
+    limits = c(0, 3), 
+    breaks = c(0, 1, 2, 3),
+    labels = c("0", "10", "100", "1000")) + # change gradient fill colours
     theme(panel.background = element_blank(), # remove background
           axis.ticks = element_blank(), # remove axis ticks
           legend.title = element_text(size = 9), # adjust legend title size
@@ -193,9 +200,9 @@ players_by_country <- map %>%
           plot.title.position = "plot", # left align title
           plot.title = element_textbox_simple(size=15)) + # change title size
   # Change labels
-  labs(title = "<b>Several<span style='color:#04f5ff'> African countries</span> seem to produce top-tier football players</span></b><br>
-         <span style = 'font-size:12pt'>Number of unique players in the top 5 European leagues between 2015 and 2022",
-         fill = "Playercount (log10)",
+  labs(title = "<b><span style='color:red'> Liverpool</span> historically sourced their players from the same areas as the rest of the Premier League</span></b><br>
+         <span style = 'font-size:12pt'>Representation of nationalities in the Premier League since 2015",
+         fill = "Playercount",
          x = "",
          y = "") +
   xlim(-13000000,15000000) # change span of x axis
@@ -214,17 +221,8 @@ ggsave(
 
 ```{r map of best teams per country}
 
-# Download team spi data
-team_spi <- read.csv("data/spi_global_rankings.csv", header = TRUE) %>% 
-  rename(name = country)
-
-# Define countries of Europe
-eur_countries <- c("Austria","Belgium","Bulgaria","Croatia","Cyprus",
-                    "Czech Rep.","Denmark","Estonia","Finland","France",
-                    "Germany","Greece","Hungary","Ireland","Italy","Latvia",
-                    "Lithuania","Luxembourg","Malta","Netherlands","Norway", "Poland",
-                    "Portugal","Romania","Slovakia","Slovenia","Spain",
-                    "Sweden", "Switzerland", "United Kingdom")
+FCL_age_hist <- fifa_players %>% 
+  
 
 ```
 
