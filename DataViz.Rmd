@@ -5,7 +5,19 @@ date: "2022-11-17"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
+knitr::opts_chunk$set(
+  message = FALSE, 
+  warning = FALSE, 
+  tidy=FALSE,     # display code as typed
+  size="small")   # slightly smaller font for code
+options(digits = 3)
+
+# default figure size
+knitr::opts_chunk$set(
+  fig.width=30, 
+  fig.height=15,
+  fig.align = "center"
+)
 ```
 
 ```{r,include=FALSE}
@@ -56,6 +68,10 @@ library(lubridate)
 library(ggforce)
 library(ggflags)
 library(grid)
+library(png)
+library(sf) 
+library(countrycode)
+
 
 loadfonts(device="win")
 # loadfonts(device="pdf") if you have a mac
@@ -291,7 +307,7 @@ ggsave(
 ```{r library}
 
 #read csv file
-data_dir <- "~/Desktop/LBS/am10-group8-football-project/data/transfer"
+data_dir <- "~/Desktop/r_folder/am10-group8-football-project/data/transfer"
 
 files <- fs::dir_ls(path = data_dir, regexp = "\\.csv$", recurse = TRUE) 
 #recurse=TRUE will recursively look for files further down into any folders
@@ -308,16 +324,16 @@ skim(football_transfer_all)
 #create df to select only the most expensive transfer/year since 1990
 top_football_transfers <- football_transfer_all %>% 
   drop_na(fee_cleaned) %>% 
-  filter(year > 1999) %>% 
+  filter(year > 1999, transfer_movement == "in", club_name == "Liverpool FC") %>% 
   group_by(year) %>% 
   slice(which.max(fee_cleaned)) %>% 
   select(year, fee_cleaned, player_name)
 
 #create a list of the nationalities of each transfer (because the information was not available)
-nationality <- c("Portugal", "France", "United Kingdom", " United Kingdom", "Ivory Coast",
-                 "Ghana", "Ukraine", "Spain", "Brazil", "Portugal", "Spain", "Argentina",
-                 "Brazil", "United Kingdom", "Uruguay", "Belgium", "France", "Brazil", "France", 
-                 "Portugal", "Germany", "United Kingdom")
+nationality <- c("Germany", "United Kingdom", "Senegal", "Australia", "France",
+                 "France", "Netherlands", "Spain", "Ireland", "United Kingdom", "United Kingdom", "United Kingdom",
+                 "United Kingdom", "France", "United Kingdom", "Belgium", "Senegal", "Netherlands", "Brazil", 
+                 "Japan", "Portugal", "Colombia")
 
 #add the nationality column to the df and convert it to iso2c codes
 top_football_transfers$nationality <- nationality 
@@ -326,33 +342,33 @@ top_football_transfers$iso3  <- tolower(top_football_transfers$iso3 )
 
 #create the annotation for the first outlier and upload the image
 annotation1 <- data.frame(
-   x = 2009,
-   y = 110,
-   label = c("Cristiano Ronaldo \n Real Madrid -> Manchester United"))
-img1 <- readPNG("C:/Users/ty/Desktop/LBS/am10-group8-football-project/data/transfer/ronaldo.png")
+   x = 2007,
+   y = 47,
+   label = c("Fernando Torres \n from \n Atletico Madrid"))
+img1 <- readPNG("~/Desktop/r_folder/am10-group8-football-project/players_photo/torres.png")
 r <- rasterGrob(img1, interpolate=TRUE)
 
 #create the annotation for the second outlier and upload the image
 annotation2 <- data.frame(
    x = 2017,
-   y = 240,
-   label = c("Neymar \n  Barcelona FC -> PSG"))
-img2 <- readPNG("C:/Users/ty/Desktop/LBS/am10-group8-football-project/data/transfer/neymar.png")
+   y = 95,
+   label = c("Virgil van Dijk \n  from \n Southampton"))
+img2 <- readPNG("~/Desktop/r_folder/am10-group8-football-project/players_photo/dijk.png")
 n <- rasterGrob(img2, interpolate=TRUE)
 
 #create the annotation for the third outlier and upload the image
 annotation3 <- data.frame(
-   x = 2020,
-   y = 110,
-   label = c("Kai Havertz \n Bayer  \n Leverkusen \n -> Chelsea "))
-img3 <- readPNG("C:/Users/ty/Desktop/LBS/am10-group8-football-project/data/transfer/kai.png")
+   x = 2019,
+   y = 25,
+   label = c("Takumi \n Minamino \n from \n Red Bull \n Salzburg "))
+img3 <- readPNG("~/Desktop/r_folder/am10-group8-football-project/players_photo/takumi.png")
 k <- rasterGrob(img3, interpolate=TRUE)
 
 
-  top_football_transfers$color <- ifelse(top_football_transfers$year == "2009" | top_football_transfers$year == "2017" | top_football_transfers$year == "2020", '#2a7e19', '#825736')
+  top_football_transfers$color <- ifelse(top_football_transfers$year == "2007" | top_football_transfers$year == "2017" | top_football_transfers$year == "2019", '#2a7e19', '#825736')
 
 
-v <- top_football_transfers %>%
+ top_football_transfers %>%
   ggplot(aes(x = year, y = fee_cleaned))+
   #geom_bar(stat = "identity", color = 'green', fill = '#2a7e19') +
   geom_bar(stat = 'identity', aes(fill = color), width = 0.6) +
@@ -360,44 +376,45 @@ v <- top_football_transfers %>%
   #add flags to the graph
   geom_flag(y = -1, aes(country = iso3), size = 50) +
   #add limits to the x and y axis
-  ylim(0,300) +
+  ylim(0,120) +
   scale_x_continuous(breaks = seq(2000,2021,1))+
   #set the theme, and add the annotations 
   theme_bw()+
   theme(aspect.ratio = 10/29,
-    panel.grid = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
     legend.title = element_blank(),
     legend.text  = element_blank(),
     legend.position="none",
     panel.border = element_blank(),
     panel.background = element_blank(),
     plot.title = element_text(family = "Arial",
-                              size = 60, 
+                              size = 80, 
                               colour = "#222222", 
                               face = 'bold',
                               hjust = 0,
                               vjust = 2),   
     plot.subtitle = element_text(family = "Arial",
-                                 size = 40,
+                                 size = 60,
                                  face = 'plain',
                                  colour = "#222222", 
                                  hjust = 0,
                                  vjust = 2),
-    axis.text = element_text( size= 40, margin = margin(t = 100)),
-    axis.title = element_text(size = 40)) +
+    axis.text = element_text( size= 60, margin = margin(t = 100)),
+    axis.title = element_text(size = 60)) +
     geom_text(data=annotation1, 
-              aes(x=x, y =y, label=label),                 , 
+              aes(x=x, y =y, label=label),                 
               color="black", 
               size=15 , 
               angle=0, 
               fontface="bold") +
     annotation_custom(grob = r, 
-                      xmin = 2008, 
-                      xmax = 2010, 
-                      ymin = 125, 
-                      ymax = 165) +
+                      xmin = 2006, 
+                      xmax = 2008, 
+                      ymin = 57, 
+                      ymax = 77) +
     geom_text(data=annotation2, 
-              aes( x=x, y =y,  label=label),                 , 
+              aes( x=x, y =y,  label=label),                  
               color="black", 
               size=15 , 
               angle=0, 
@@ -405,26 +422,25 @@ v <- top_football_transfers %>%
     annotation_custom(grob = n, 
                       xmin = 2016, 
                       xmax = 2018, 
-                      ymin = 250, 
-                      ymax = 290) +
+                      ymin = 105, 
+                      ymax = 125) +
     geom_text(data=annotation3, 
-              aes( x=x, y =y, label=label),                 , 
+              aes( x=x, y =y, label=label),                 
               color="black", 
               size=15 , 
               angle=0, 
               fontface="bold" ) +
     annotation_custom(grob = k, 
-                      xmin = 2019, 
-                      xmax = 2021, 
-                      ymin = 140, 
-                      ymax = 170) +
-    labs( title = "Since 2013, the football transfer market has become more volatile compared to the early 2000's",
-          subtitle = "The most expensive football transfers of each year and the player's nationalities", 
+                      xmin = 2018, 
+                      xmax = 2020, 
+                      ymin = 40, 
+                      ymax = 60) +
+    labs( title = "Liverpool was willing to spend considerable funds to acquire one of the best defenders in the world in 2017 ",
+          subtitle = "Nationality and price of most expensive player acquisition per year of Liverpool FC ", 
           citation = " ", 
           x = "",
           y = "Total transfer fee (€ millions)")
 
-v
 
  
 ```
