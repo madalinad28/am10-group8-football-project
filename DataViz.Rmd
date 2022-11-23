@@ -12,12 +12,6 @@ knitr::opts_chunk$set(
   size="small")   # slightly smaller font for code
 options(digits = 3)
 
-# default figure size
-knitr::opts_chunk$set(
-  fig.width=30, 
-  fig.height=15,
-  fig.align = "center"
-)
 ```
 
 ```{r,include=FALSE}
@@ -71,7 +65,8 @@ library(grid)
 library(png)
 library(sf) 
 library(countrycode)
-
+library(cowplot)
+library(RCurl)
 
 loadfonts(device="win")
 # loadfonts(device="pdf") if you have a mac
@@ -237,7 +232,7 @@ ggsave(
 
 ```
 
-```{r map liverpool team age}
+```{r map liverpool team age, fig.width=6.75, fig.height=6.75}
 
 fifa_players23_age <- fifa_players23 %>% 
   select(fifa_edit, age, club) %>%
@@ -305,7 +300,7 @@ ggsave(
 
 ## Transfer
 
-```{r library}
+```{r library, fig.width=30, fig.height=15}
 
 #read csv file
 data_dir <- "~/Desktop/r_folder/am10-group8-football-project/data/transfer"
@@ -446,41 +441,87 @@ k <- rasterGrob(img3, interpolate=TRUE)
  
 ```
 
-## Market Value
 
-![](graph/mv.jpg)
+```{r, plot of departing players fig.width=30, fig.height=15}
 
-# Liverpool's Performance
+limited_players <- fifa_players23 %>% 
+  filter(contract_until >= 2023 & contract_until <= 2025, club == "Liverpool") %>% 
+  group_by(contract_until) %>% 
+  slice(which.max(overall)) %>% 
+  select(name, photo_url,contract_until, passing_total, dribbling_total, defending_total, pace_total, shooting_total)
+limited_players$name <- c("Mohamed Salah", "Thiago Alcântara", "Virgil van Dijk")
+limited_players <-limited_players %>% 
+  rename(Passing = passing_total,
+         Dribbling = dribbling_total,
+         Defending = defending_total,
+         Pace = pace_total,
+         Shooting = shooting_total)
 
-As last year's league runner-up, Liverpool's performance slipped this season. If we look at Squad's Goal and Goals conceded data, we can observe a huge drop in both attacking and defending performance for Liverpool.
+limited_players_longer <- limited_players %>%  
+  pivot_longer(cols = c("Passing", "Dribbling", "Defending", "Pace", "Shooting"),
+           names_to = "type",
+           values_to = "score")
 
-![](graph/liv21.jpeg)
 
-![](graph/liv22.jpeg)
+myurl <- limited_players[[2]][[1]]
+my_image <-  readPNG(getURLContent(myurl))
+s <- rasterGrob(my_image, interpolate=TRUE)
 
-We are going to analyze the reason from player's performance in different positions.
+myurl2 <- limited_players[[2]][[2]]
+my_image2 <-  readPNG(getURLContent(myurl2))
+ti <- rasterGrob(my_image2, interpolate=TRUE)
 
-## Attacking
+myurl3 <- limited_players[[2]][[3]]
+my_image3 <-  readPNG(getURLContent(myurl3))
+vd <- rasterGrob(my_image3, interpolate=TRUE)
 
-![](graph/Attack.jpeg)
+labels_x <- c("Shooting", "Passing", "Pace", "", "Dribbling", "Defending")
 
-In terms of Attacking, Liverpool actually did pretty good in dominating and creating chances. All 3 metrics are ranking 2nd in the league. But they only rank the fifth in terms of goals, which means they are poor at conversion rate. Both Shot on Target Rate and Goals per SoT are below league average.
 
-![](graph/Shot.jpeg)
+g <- limited_players_longer %>% 
+  ggplot(aes(x = type, y = score, fill = type)) +
+  geom_bar(width = 0.9, stat="identity") + 
+  scale_fill_manual(values = c( "#FFEE46", "#C8102E", "#5E1208", "#009782", "#003C33"))+
+  facet_grid(. ~ name)+
+  coord_polar(theta = "y") +
+  scale_x_discrete(labels= c("Shooting", "Passing", "Pace", "", "Dribbling", "Defending"))+
+  xlab("") + 
+  ylab("") +
+  ylim(c(0,120)) +
+  geom_text(hjust = 1, size = 15,
+              aes(x = type, y = 0, label = type)) +
+    theme_minimal() +
+    theme(legend.position = "none",
+          plot.title = element_textbox_simple(size=80, family = "Arial",  face = 'plain'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          strip.text.x = element_text(size = 50, face = "bold", family = "Arial"),
+          axis.text.x = element_text(vjust = -10),
+          axis.line = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks = element_blank()) +
+  labs(title = "<b>In the next 3 years, Liverpool's contracts with some of their best players will end</b><br>
+       <span style = 'font-size:60pt'>Radial bar chart of selected Liverpool players' strengths according to FIFA 2023<br> ")
 
-## Midfield
-
-Midfield is critical for stopping opponent's counter attack, especially for strong teams when facing weaker ones. In terms of press given, 3 main Liverpool midfield players are below the league average and did worse compared to last season. For tackles and intercept, still only Thiago is over league average and two of them did worse than last year.
-
-![](graph/tk.jpeg)
-
-## Defender
-
-Let's look at one of the best center back in the league/the world, Virgil van Dijk's defensive performance.
-
-![](graph/van.jpeg)
-
-In terms of aerial won and clearance, Van dijk is still one of the best players. However, his 1 on 1 defending capacity lags behind this season, which is catastrophic if a center back can't stop opponent players.
+  
+leaving_players_plot <- ggdraw(g) + 
+  annotation_custom(grob = s, 
+                      xmin = 0.00, 
+                      xmax = 0.35, 
+                      ymin = 0.009, 
+                      ymax = 0.20) +
+  annotation_custom(grob = ti, 
+                      xmin = 0.34, 
+                      xmax = 0.70, 
+                      ymin = 0.009, 
+                      ymax = 0.20)+
+  annotation_custom(grob = vd, 
+                      xmin = 0.70, 
+                      xmax = 1, 
+                      ymin = 0.009, 
+                      ymax = 0.20)
+  
+```
 
 # Which role is each player playing?
 
@@ -790,12 +831,6 @@ We can also compare Arnold and Van Dijk again and now they are classified into d
 
 We have identified the problem Liverpool is facing this season: Poor conversion rate, dropping midfielder and center back's defending performance. And we are going to recommend players for Liverpool in each position (Not from their competitors).
 
-## Forward
-
-Clearly they need a player with higher conversion rate.
-
-![](graph/lookman.jpeg)
-
 ## Defensive Midfield
 
 ```{r rec_dm}
@@ -819,6 +854,3 @@ title(main = "Player Ability Metrics")
 par(op)
 ```
 
-## Center Back
-
-![](graph/mings.jpeg)
