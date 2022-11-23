@@ -1,38 +1,31 @@
 # AM10 Data Visualisation and Story Telling - Group 8 Project
 
-# Welcome to the Football Corner!
+# Liverpool, you never walk alone!
 
-Hello there, fellow football fanatic! You have entered the ultimate football nerd zone, where we combine our passion of the sport of the gods
-with our love for data. In this repository, we will take a trip through the stats behind the players, matches and teams and try to understand 
-what is going on behind the scenes. While we will focus especially on the most recent season of the Premier League, we will also include insights
-about less recent football history and other leagues.
+Thank you for kicking your ball into our corner of the football pitch. If you are like us, you enjoy watching a nice Liverpool match in the pub over pints and fish & chips. But have you ever thought about what data lies behind the game of football? Or why Liverpool is not performing as well in this year's Premier League? Well, we have the answers for you.
 
-## What kind of questions do we seek to address?
+## What data did we use for our analysis?
 
-Any football match is a combination of many unique variables, including player attributes, team compositions and match ups. This inevitably leads
-to some interesting questions we seek to answer:
+To create a thorough analysis of Liverpool's history and current situation, we have combined several datasets that compliment each other to derive insights about this legendary football club. The data includes:
 
-- Why do certain players outperform their competitive set?
-- What team compositions work best?
-- Can we predict a matche's outcome before the first pass has been made?
-- Are teams putting their players in the right position given their strengths?
-- Do different leagues need different types of players?
-- Who was the MVP of the 2021-2022 Premier League?
-- and more...
+- Data from the FIFA games (2015 to 2023)
+- Actual data from last year's and the current season of the Premier League
+- Historical data on transfers (values, dates, players)
+- Data on Liverpool financials
 
-## What data will we use for our analysis?
+## What kind of questions did we address?
 
-We have identified a suitable dataset to start from, which provides information about each player of the 2021-2022 Premier League season. 
-The dataset can be found here: https://www.kaggle.com/datasets/vivovinco/20212022-football-player-stats. It includes detailed information 
-about each player's summary statistics from the season, from major information such as total goals to more minute details including the amount
-of balls that were successfully intercepted.
+We wanted to better understand Liverpool from all angles. However, we followed a step by step approach to draw some key insights about the football club.
 
-To deepen the level of our analysis, we intend to complement the data set with additional information such as history team and match statistics (also
-found unter the link provided above). This way, we hope to be able to make predictions about match outcomes for future seasons.
+- What is the composition of the Premier League? How does Liverpool compare to its biggest rivals in terms of player value?
+- Is Liverpool still financially successful? Can they afford new players and which/where from do they buy them?
+- Is the roster of Liverpool still as agressive as ever, or perhaps aging slightly?
+- How is Liverpool performing this year? What might be causes for the drop in performance?
+- Who could Liverpool look at to improve in the future?
 
-## What kind of statistical methods will we utilize?
+We also deployed some k-means clustering to identify the common characteristics and strenghts of different positions. With the help of this, we hope to make some valuable recommendations on which players Liverpool might be able to target for acquisitions to increase their performance.
 
-We would expect that certain positions on the soccer field are associated with certain player attributes. Based on these attributes, we 
-will be able to use clustering methods to determine what the associated attributes are and if a player might be positioned wrongly by his team.
-Additionally, we will investigate whether we can use the player statistics used by popular video game "FIFA" to predict a given team's success, or what caused
-a team to perform better/worse from one season to the next. For this, Ridge and/or Lasso regression will proof useful. 
+## Final notes
+In case you are interested in finding the answers to the above questions, feel free to look through our code and pptx/pdf file.
+
+ENJOY!
