@@ -78,7 +78,7 @@ loadfonts(device="win")
 
 ```
 
-```{r loaddata,include=FALSE}
+```{r loaddata}
 players_21 <- read_delim("data/2122players.csv", 
                            delim = ";", escape_double = FALSE, 
                          trim_ws = TRUE,locale = locale(encoding = "UTF-8"))
@@ -91,7 +91,7 @@ teams_22 <- read_delim("data/2223teams.csv",
                        delim = ";", escape_double = FALSE, trim_ws = TRUE)
 ```
 
-```{r cleandata, include=FALSE}
+```{r cleandata} 
 ## Only choose players who play more than 900 mins in 2021 and 300 in 2022
 ## Clean the position column
 players_21 <- players_21 %>% 
@@ -103,7 +103,7 @@ players_22 <- players_22 %>%
   mutate(Pos = substr(Pos,1,2))
 ```
 
-```{r radarchart,include=FALSE}
+```{r radarchart}
 create_beautiful_radarchart <- function(data, color = "#00AFBB", 
                                         vlabels = colnames(data), vlcex = 0.7,
                                         caxislabels = NULL, title = NULL, ...){
@@ -128,7 +128,7 @@ For this project, we retrieved data from [FBref](https://fbref.com/en/), our dat
 
 ## EDA
 
-```{r, add player data and clean,include=FALSE}
+```{r, add player data and clean}
                                       
 # Combine data sets into one data set 
 list_csv_files <- c("data/players/players_15.csv", "data/players/players_16.csv", "data/players/players_17.csv", "data/players/players_18.csv",
@@ -188,7 +188,7 @@ PL_n_nation <- fifa_players_clean %>%
 
 ```
 
-```{r create map with player density}
+```{r create map with player density, fig.width=6.75, fig.height=6.75}
 
 # Create map of the world
 map <- ne_countries(scale = "medium", returnclass = "sf") %>%
@@ -202,7 +202,7 @@ players_by_country <- map %>%
   ggplot() +
     geom_sf(mapping = aes(geometry = geometry, fill = log10(count), color = liverpool)) + 
     coord_sf(crs = "+proj=robin") +  # change coords for more accurate representation of map
-    scale_color_manual(values = c("#838383", "#17B1A7"), guide = "none") + # define manual colors for highlight countries of interest
+    scale_color_manual(values = c("#838383", "#C71C2F"), guide = "none") + # define manual colors for highlight countries of interest
     scale_fill_gradient(
     low = "#E4F2E7",
     high = '#00381F',
@@ -218,7 +218,7 @@ players_by_country <- map %>%
           plot.title.position = "plot", # left align title
           plot.title = element_textbox_simple(size=15)) + # change title size
   # Change labels
-  labs(title = "<b><span style='color:#17B1A7'> Liverpool</span> historically sourced their players from the same areas as the rest of the Premier League</span></b><br>
+  labs(title = "<b><span style='color:#C71C2F'> Liverpool</span> historically sourced their players from the same areas as the rest of the Premier League</span></b><br>
          <span style = 'font-size:12pt'>Representation of nationalities in the Premier League since 2015",
          fill = "Playercount",
          x = "",
@@ -237,7 +237,7 @@ ggsave(
 
 ```
 
-```{r map of best teams per country}
+```{r map liverpool team age}
 
 fifa_players23_age <- fifa_players23 %>% 
   select(fifa_edit, age, club) %>%
@@ -257,7 +257,8 @@ FCL_age_years <- fifa_players %>%
     stat_summary(fun.y=mean, geom="point", shape=20, size=8, color="#17B1A7", fill="#17B1A7") +
     theme(panel.background = element_blank(), # remove background
           plot.title.position = "plot", # left align title
-          panel.grid = element_blank(), # remove gridlines
+          panel.grid.minor = element_blank(), # remove gridlines
+          panel.grid.major.x = element_blank(), # remove major gridlines
           axis.text = element_text(size = 14), # change font size of text
           axis.title = element_text(size = 16), # Change font size of text
           plot.title = element_textbox_simple(size=24)) + # change title size
